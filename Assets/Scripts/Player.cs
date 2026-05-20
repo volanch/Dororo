@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class Player : MonoBehaviour
@@ -15,6 +16,12 @@ public class Player : MonoBehaviour
     [SerializeField] private float attackRange = 0.7f;
     [SerializeField] private LayerMask enemyLayer;
     [SerializeField] private int attackDamage = 1;
+    
+    [Header("Dash")]
+    [SerializeField] private float dashSpeed = 20f;
+    [SerializeField] private float dashDuration = 0.333f;
+    [SerializeField] private float dashCooldown = 1f;
+    [SerializeField] private AudioClip dashSound;
 
     [Header("Ground Check")]
     [SerializeField] private Transform groundCheck;
@@ -40,6 +47,10 @@ public class Player : MonoBehaviour
     private bool isAttacking = false;
     private bool comboQueued = false;
     private int attackStep = 0;
+    
+    //dashing state
+    private bool isDashing = false;
+    private bool canDash = true;
 
     // Invincibility frames after getting hit
     private bool isInvincible = false;
@@ -57,6 +68,7 @@ public class Player : MonoBehaviour
     void Update()
     {
         if (isDead) return;
+        if (isDashing) return;
 
         horizontalInput = Input.GetAxisRaw("Horizontal");
 
@@ -73,6 +85,9 @@ public class Player : MonoBehaviour
             audioSource.PlayOneShot(jumpSound);
         }
 
+        if (Input.GetKeyDown(KeyCode.LeftShift) && canDash && !isDashing)
+            StartCoroutine(Dash());
+        
         if (Input.GetMouseButtonDown(0))
         {
             if (!isAttacking)
@@ -91,6 +106,30 @@ public class Player : MonoBehaviour
     {
         if (isDead) return;
         rb.linearVelocity = new Vector2(horizontalInput * moveSpeed, rb.linearVelocity.y);
+    }
+    
+    private IEnumerator Dash()
+    {
+        isDashing = true;
+        canDash = false;
+        isInvincible = true;
+ 
+        float dashDirection = transform.localScale.x;
+        rb.gravityScale = 0f;
+        rb.linearVelocity = new Vector2(dashDirection * dashSpeed, 0f);
+ 
+        animator.SetTrigger("Dash");
+        audioSource.PlayOneShot(dashSound);
+ 
+        yield return new WaitForSeconds(dashDuration);
+ 
+        rb.gravityScale = 4f;
+        rb.linearVelocity = Vector2.zero;
+        isDashing = false;
+        isInvincible = false;
+ 
+        yield return new WaitForSeconds(dashCooldown);
+        canDash = true;
     }
 
     void StartAttack1()
