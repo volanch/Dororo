@@ -223,6 +223,7 @@ public class Player : MonoBehaviour
     void Die()
     {
         isDead = true;
+        DeathCounter.Instance?.AddDeath();
         animator.SetTrigger("Die");
         rb.linearVelocity = Vector2.zero;
         rb.bodyType = RigidbodyType2D.Kinematic;
