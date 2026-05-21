@@ -7470,7 +7470,7 @@ GameObject:
   - component: {fileID: 728876612}
   - component: {fileID: 728876611}
   m_Layer: 8
-  m_Name: Player (1)
+  m_Name: Player
   m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -7501,17 +7501,16 @@ MonoBehaviour:
   dashSpeed: 8
   dashDuration: 0.333
   dashCooldown: 1
-  dashSound: {fileID: 0}
   groundCheck: {fileID: 1455824788}
   groundRadius: 0.15
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
-  jumpSound: {fileID: 0}
-  attackSound: {fileID: 0}
-  hurtSound: {fileID: 0}
-  dialoguePlaying: 0
   invincibilityDuration: 0.5
+  footstepInterval: 0.35
+  gameOverCanvas: {fileID: 0}
+  fallDeathY: -10
+  dialoguePlaying: 0
 --- !u!82 &728876612
 AudioSource:
   m_ObjectHideFlags: 0
