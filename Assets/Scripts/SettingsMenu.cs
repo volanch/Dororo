@@ -5,17 +5,24 @@ public class SettingsMenu : MonoBehaviour
 {
     [SerializeField] private AudioMixer audioMixer;
     [SerializeField] private GameObject mainMenuButtons;
+    [SerializeField] private GameObject pausePanel;
 
     public void Open()
     {
         gameObject.SetActive(true);
-        mainMenuButtons.SetActive(false);
+        if (mainMenuButtons != null)
+            mainMenuButtons.SetActive(false);
+        if (pausePanel != null)
+            pausePanel.SetActive(false);
     }
 
     public void Close()
     {
         gameObject.SetActive(false);
-        mainMenuButtons.SetActive(true);
+        if (mainMenuButtons != null)
+            mainMenuButtons.SetActive(true);
+        if (pausePanel != null)
+            pausePanel.SetActive(true);
     }
 
     public void SetVolume(float value)

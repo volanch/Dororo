@@ -42,6 +42,7 @@ public class Player : MonoBehaviour
     private float horizontalInput;
     private bool isGrounded;
     private bool isDead = false;
+    public bool dialoguePlaying = false;
 
     // Combo attack
     private bool isAttacking = false;
@@ -69,6 +70,7 @@ public class Player : MonoBehaviour
     {
         if (isDead) return;
         if (isDashing) return;
+        if (dialoguePlaying) return;
 
         horizontalInput = Input.GetAxisRaw("Horizontal");
 
@@ -101,10 +103,11 @@ public class Player : MonoBehaviour
         animator.SetBool("IsGrounded", isGrounded);
         animator.SetFloat("VerticalSpeed", rb.linearVelocity.y);
     }
-
+    
     void FixedUpdate()
     {
         if (isDead) return;
+        if (isDashing) return;
         rb.linearVelocity = new Vector2(horizontalInput * moveSpeed, rb.linearVelocity.y);
     }
     
