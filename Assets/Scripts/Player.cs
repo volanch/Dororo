@@ -16,27 +16,32 @@ public class Player : MonoBehaviour
     [SerializeField] private float attackRange = 0.7f;
     [SerializeField] private LayerMask enemyLayer;
     [SerializeField] private int attackDamage = 1;
-    
+
     [Header("Dash")]
     [SerializeField] private float dashSpeed = 20f;
     [SerializeField] private float dashDuration = 0.333f;
     [SerializeField] private float dashCooldown = 1f;
-    [SerializeField] private AudioClip dashSound;
 
     [Header("Ground Check")]
     [SerializeField] private Transform groundCheck;
     [SerializeField] private float groundRadius = 0.15f;
     [SerializeField] private LayerMask groundLayer;
 
-    [Header("Audio")]
-    [SerializeField] private AudioClip jumpSound;
-    [SerializeField] private AudioClip attackSound;
-    [SerializeField] private AudioClip hurtSound;
+    // Invincibility frames after getting hit
+    private bool isInvincible = false;
+    [SerializeField] private float invincibilityDuration = 0.5f;
+
+    // Footstep timer
+    private float footstepTimer = 0f;
+    [SerializeField] private float footstepInterval = 0.35f;
+
+    [Header("Game Over")]
+    [SerializeField] private GameObject gameOverCanvas;
+    [SerializeField] private float fallDeathY = -10f; // порог падения
 
     // Components
     private Rigidbody2D rb;
     private Animator animator;
-    private AudioSource audioSource;
 
     // State
     private float horizontalInput;
@@ -48,20 +53,15 @@ public class Player : MonoBehaviour
     private bool isAttacking = false;
     private bool comboQueued = false;
     private int attackStep = 0;
-    
-    //dashing state
+
+    // Dash state
     private bool isDashing = false;
     private bool canDash = true;
-
-    // Invincibility frames after getting hit
-    private bool isInvincible = false;
-    [SerializeField] private float invincibilityDuration = 0.5f;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
-        audioSource = GetComponent<AudioSource>();
         currentHp = maxHp;
         GameManager.Instance?.UpdateHpUI();
     }
@@ -81,56 +81,76 @@ public class Player : MonoBehaviour
 
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundRadius, groundLayer);
 
+        // Jump
         if (Input.GetButtonDown("Jump") && isGrounded)
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
-            audioSource.PlayOneShot(jumpSound);
+            SoundManager.Instance?.PlayJump();
         }
 
+        // Dash
         if (Input.GetKeyDown(KeyCode.LeftShift) && canDash && !isDashing)
             StartCoroutine(Dash());
-        
+
+        // Attack combo
         if (Input.GetMouseButtonDown(0))
         {
             if (!isAttacking)
                 StartAttack1();
             else if (attackStep == 1)
-                comboQueued = true; // queue Attack2 during Attack1
+                comboQueued = true;
+        }
+
+        // Footstep sounds while walking on ground
+        if (isGrounded && Mathf.Abs(horizontalInput) > 0)
+        {
+            footstepTimer -= Time.deltaTime;
+            if (footstepTimer <= 0f)
+            {
+                footstepTimer = footstepInterval;
+            }
+        }
+        else
+        {
+            footstepTimer = 0f;
         }
 
         // Animator parameters
         animator.SetFloat("Speed", Mathf.Abs(horizontalInput));
         animator.SetBool("IsGrounded", isGrounded);
         animator.SetFloat("VerticalSpeed", rb.linearVelocity.y);
+
+        // Падение в яму
+        if (transform.position.y < fallDeathY && !isDead)
+            Die();
     }
-    
+
     void FixedUpdate()
     {
-        if (isDead) return;
-        if (isDashing) return;
+        if (isDead || isDashing) return;
         rb.linearVelocity = new Vector2(horizontalInput * moveSpeed, rb.linearVelocity.y);
     }
-    
+
     private IEnumerator Dash()
     {
         isDashing = true;
         canDash = false;
         isInvincible = true;
- 
+
         float dashDirection = transform.localScale.x;
         rb.gravityScale = 0f;
         rb.linearVelocity = new Vector2(dashDirection * dashSpeed, 0f);
- 
+
         animator.SetTrigger("Dash");
-        audioSource.PlayOneShot(dashSound);
- 
+        SoundManager.Instance?.PlayDash();
+
         yield return new WaitForSeconds(dashDuration);
- 
+
         rb.gravityScale = 4f;
         rb.linearVelocity = Vector2.zero;
         isDashing = false;
         isInvincible = false;
- 
+
         yield return new WaitForSeconds(dashCooldown);
         canDash = true;
     }
@@ -141,20 +161,19 @@ public class Player : MonoBehaviour
         attackStep = 1;
         comboQueued = false;
         animator.SetTrigger("Attack1");
-        audioSource.PlayOneShot(attackSound);
+        SoundManager.Instance?.PlaySwordSlice();
         DoAttackHit();
-        Invoke(nameof(CheckCombo), 0.35f); // combo window
+        Invoke(nameof(CheckCombo), 0.35f);
     }
 
     void CheckCombo()
     {
         if (comboQueued)
         {
-            // Chain into Attack2
             attackStep = 2;
             comboQueued = false;
             animator.SetTrigger("Attack2");
-            audioSource.PlayOneShot(attackSound);
+            SoundManager.Instance?.PlaySwordSlice();
             DoAttackHit();
             Invoke(nameof(EndAttack), 0.4f);
         }
@@ -179,17 +198,16 @@ public class Player : MonoBehaviour
         foreach (var hit in hits)
             hit.GetComponent<Enemy>()?.TakeDamage(attackDamage);
     }
-
+    
     public void TakeDamage(int damage)
     {
         if (isDead || isInvincible) return;
 
         currentHp -= damage;
-        audioSource.PlayOneShot(hurtSound);
+        SoundManager.Instance?.PlayHit();
         animator.SetTrigger("Hit");
         GameManager.Instance?.UpdateHpUI();
 
-        // Brief invincibility so enemy doesn't hit every frame
         isInvincible = true;
         Invoke(nameof(EndInvincibility), invincibilityDuration);
 
@@ -207,23 +225,35 @@ public class Player : MonoBehaviour
         isDead = true;
         animator.SetTrigger("Die");
         rb.linearVelocity = Vector2.zero;
-        rb.bodyType = RigidbodyType2D.Kinematic; // stop all physics
+        rb.bodyType = RigidbodyType2D.Kinematic;
         GetComponent<Collider2D>().enabled = false;
-        Invoke(nameof(ReloadScene), 2f);
+
+        // Показываем экран поражения только на LevelGolem и Level3
+        string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if ((scene == "LevelGolem" || scene == "Level3") && gameOverCanvas != null)
+        {
+            Invoke(nameof(ShowGameOver), 1f); // небольшая задержка после анимации смерти
+        }
+        else
+        {
+            Invoke(nameof(ReloadScene), 2f);
+        }
+    }
+
+    void ShowGameOver()
+    {
+        gameOverCanvas.SetActive(true);
+        Time.timeScale = 0f; // пауза игры
     }
 
     void ReloadScene()
     {
+        Time.timeScale = 1f;
         UnityEngine.SceneManagement.SceneManager.LoadScene(
             UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
     }
 
     public bool IsGrounded() => isGrounded;
-
-    public void PlayCoinSound(AudioClip coinSound)
-    {
-        audioSource.PlayOneShot(coinSound);
-    }
 
     void OnDrawGizmosSelected()
     {
