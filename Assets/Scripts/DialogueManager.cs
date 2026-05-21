@@ -26,25 +26,46 @@ public class DialogueManager : MonoBehaviour
 
     void Start()
     {
-        lines = new DialogueLine[]
+        dialoguePanel.SetActive(false);
+
+        string sceneName = SceneManager.GetActiveScene().name;
+
+        if (sceneName == "Level1")
         {
-            new DialogueLine("???",  "Agis! Give me back my soul. I know you took it.",    true),
-            new DialogueLine("Agis", "Ah... so you found me. Impressive for a hollow shell.", false),
-            new DialogueLine("Agis", "Yes, I took your soul. But I cannot return it.",       false),
-            new DialogueLine("???",  "Cannot... or will not?",                               true),
-            new DialogueLine("Agis", "My son. His soul was stolen long before yours.",       false),
-            new DialogueLine("Agis", "He wanders as a shadow, just as you do now.",          false),
-            new DialogueLine("Agis", "Find the one who took his soul. Bring it back to me.", false),
-            new DialogueLine("Agis", "Do that... and I will return what is yours.",          false),
-            new DialogueLine("???",  "And if I refuse?",                                     true),
-            new DialogueLine("Agis", "Then you remain nothing. Forever.",                    false),
-        };
+            StartDialogue(new DialogueLine[]
+            {
+                new DialogueLine("???",  "Agis! Give me back my soul. I know you took it.",    true),
+                new DialogueLine("Agis", "Ah... so you found me. Impressive for a hollow shell.", false),
+                new DialogueLine("Agis", "Yes, I took your soul. But I cannot return it.",       false),
+                new DialogueLine("???",  "Cannot... or will not?",                               true),
+                new DialogueLine("Agis", "My son. His soul was stolen long before yours.",       false),
+                new DialogueLine("Agis", "He wanders as a shadow, just as you do now.",          false),
+                new DialogueLine("Agis", "Find the one who took his soul. Bring it back to me.", false),
+                new DialogueLine("Agis", "Do that... and I will return what is yours.",          false),
+                new DialogueLine("???",  "And if I refuse?",                                     true),
+                new DialogueLine("Agis", "Then you remain nothing. Forever.",                    false),
+            });
+        }
+        // На LevelGolem диалог запустит скрипт голема через StartDialogue()
+    }
+
+    public void StartDialogue(DialogueLine[] newLines)
+    {
+        lines = newLines;
+        currentLine = 0;
+        dialoguePanel.SetActive(true);
+
+        Player player = FindObjectOfType<Player>();
+        if (player != null)
+            player.dialoguePlaying = true;
 
         ShowLine(0);
     }
 
     void Update()
     {
+        if (!dialoguePanel.activeSelf) return;
+
         if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.Space))
         {
             if (isTyping)
@@ -68,7 +89,6 @@ public class DialogueManager : MonoBehaviour
         speakerText.text = lines[index].speaker;
         skipTyping = false;
 
-        // Show portrait only on player lines
         if (lines[index].isPlayerLine)
         {
             portraitImage.gameObject.SetActive(true);
@@ -104,16 +124,23 @@ public class DialogueManager : MonoBehaviour
     void EndDialogue()
     {
         dialoguePanel.SetActive(false);
+
         Player player = FindObjectOfType<Player>();
         if (player != null)
             player.dialoguePlaying = false;
-        StartCoroutine(TransitionToLevel());
+
+        string sceneName = SceneManager.GetActiveScene().name;
+
+        if (sceneName == "LevelGolem")
+            StartCoroutine(TransitionToLevel("Level3"));
+        else if (sceneName == "Level1")
+            StartCoroutine(TransitionToLevel("LevelGolem"));
     }
 
-    IEnumerator TransitionToLevel()
+    IEnumerator TransitionToLevel(string sceneName)
     {
         yield return new WaitForSeconds(1f);
-        SceneManager.LoadScene("LevelGolem");
+        SceneManager.LoadScene(sceneName);
     }
 }
 

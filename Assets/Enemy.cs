@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using System.Collections;
 public class Enemy : MonoBehaviour
 {
@@ -106,19 +107,40 @@ public class Enemy : MonoBehaviour
         if (currentHp <= 0) Die();
     }
 
-    protected virtual void Die()
+   protected virtual void Die()
 {
     isDead = true;
     animator?.SetTrigger("Die");
     rb.linearVelocity = Vector2.zero;
-    rb.bodyType = RigidbodyType2D.Kinematic; // ← добавь эту строку
+    rb.bodyType = RigidbodyType2D.Kinematic;
     GetComponent<Collider2D>().enabled = false;
+    if (GameManager.Instance != null)
+{
     GameManager.Instance.AddScore(scoreValue);
     GameManager.Instance.EnemyKilled();
+}
+    
 
     if (deathEffect != null)
         Instantiate(deathEffect, transform.position, Quaternion.identity);
 
-    Destroy(gameObject, 1.5f);
+    // Если это сцена с големом — запускаем диалог
+    if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "LevelGolem")
+    {
+        DialogueManager dm = FindObjectOfType<DialogueManager>();
+        if (dm != null)
+        {
+            dm.StartDialogue(new DialogueLine[]
+            {
+                new DialogueLine("???", "I handled with it.", true),
+                new DialogueLine("???", "So now i can return my soul back", true),
+            });
+        }
+        Destroy(gameObject, 1.5f);
+    }
+    else
+    {
+        Destroy(gameObject, 1.5f);
+    }
 }
 }
